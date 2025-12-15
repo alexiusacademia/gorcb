@@ -1,0 +1,71 @@
+version: 2
+
+project_name: gorcb
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/alexiusacademia/gorcb/internal/version.Version={{.Version}}
+      - -X github.com/alexiusacademia/gorcb/internal/version.GitCommit={{.ShortCommit}}
+      - -X github.com/alexiusacademia/gorcb/internal/version.BuildTime={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+brews:
+  - repository:
+      owner: alexiusacademia
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/alexiusacademia/gorcb"
+    description: "CLI tool for reinforced concrete beam design based on NSCP"
+    license: "MIT"
+    test: |
+      system "#{bin}/gorcb", "version"
+    install: |
+      bin.install "gorcb"
+
+scoops:
+  - repository:
+      owner: alexiusacademia
+      name: scoop-bucket
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/alexiusacademia/gorcb"
+    description: "CLI tool for reinforced concrete beam design based on NSCP"
+    license: "MIT"
+
