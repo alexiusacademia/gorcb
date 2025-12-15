@@ -6,6 +6,8 @@ import (
 	"text/tabwriter"
 
 	"github.com/alexiusacademia/gorcb/internal/beam"
+	"github.com/alexiusacademia/gorcb/internal/diagram"
+	"github.com/alexiusacademia/gorcb/internal/nscp"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +19,10 @@ var (
 	designFc     float64
 	designFy     float64
 	designMu     float64
+
+	// Diagram options
+	designShowDiagram bool
+	designExportFile  string
 )
 
 var beamDesignCmd = &cobra.Command{
@@ -58,6 +64,10 @@ func init() {
 	beamDesignCmd.MarkFlagRequired("width")
 	beamDesignCmd.MarkFlagRequired("height")
 	beamDesignCmd.MarkFlagRequired("mu")
+
+	// Diagram options
+	beamDesignCmd.Flags().BoolVar(&designShowDiagram, "diagram", false, "Show ASCII stress-strain diagram")
+	beamDesignCmd.Flags().StringVarP(&designExportFile, "output", "o", "", "Export diagram to file (png, svg, pdf)")
 }
 
 func runBeamDesign(cmd *cobra.Command, args []string) {
@@ -152,6 +162,60 @@ func runBeamDesign(cmd *cobra.Command, args []string) {
 	// Suggested bar combinations
 	if result.IsAdequate {
 		printBarSuggestions(result.AsRequired)
+	}
+
+	// Show diagram if requested
+	if designShowDiagram && result.IsAdequate {
+		epsilonY := designFy / nscp.Es
+		tensionYields := result.EpsilonT >= epsilonY
+
+		diagramData := diagram.SectionDiagramData{
+			Width:            designWidth,
+			Height:           designHeight,
+			NeutralAxisDepth: result.C,
+			StressBlockDepth: result.A,
+			TensionSteelY:    designCover,
+			TensionSteelArea: result.AsRequired,
+			EpsilonCU:        nscp.EpsilonCU,
+			EpsilonT:         result.EpsilonT,
+			EpsilonY:         epsilonY,
+			Fc:               0.85 * designFc,
+			FsTension:        designFy,
+			TensionYields:    tensionYields,
+			IsDoubly:         false,
+		}
+
+		fmt.Println(diagram.DrawASCIISectionDiagram(diagramData))
+		fmt.Println(diagram.DrawStrainDiagram(diagramData))
+	}
+
+	// Export diagram if requested
+	if designExportFile != "" && result.IsAdequate {
+		epsilonY := designFy / nscp.Es
+		tensionYields := result.EpsilonT >= epsilonY
+
+		diagramData := diagram.SectionDiagramData{
+			Width:            designWidth,
+			Height:           designHeight,
+			NeutralAxisDepth: result.C,
+			StressBlockDepth: result.A,
+			TensionSteelY:    designCover,
+			TensionSteelArea: result.AsRequired,
+			EpsilonCU:        nscp.EpsilonCU,
+			EpsilonT:         result.EpsilonT,
+			EpsilonY:         epsilonY,
+			Fc:               0.85 * designFc,
+			FsTension:        designFy,
+			TensionYields:    tensionYields,
+			IsDoubly:         false,
+		}
+
+		err := diagram.ExportSectionDiagram(diagramData, designExportFile)
+		if err != nil {
+			fmt.Printf("Error exporting diagram: %v\n", err)
+		} else {
+			fmt.Printf("Diagram exported to: %s\n", designExportFile)
+		}
 	}
 }
 

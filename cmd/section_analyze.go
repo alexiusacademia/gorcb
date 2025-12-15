@@ -5,11 +5,17 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/alexiusacademia/gorcb/internal/diagram"
+	"github.com/alexiusacademia/gorcb/internal/nscp"
 	"github.com/alexiusacademia/gorcb/internal/section"
 	"github.com/spf13/cobra"
 )
 
-var sectionAnalyzeFile string
+var (
+	sectionAnalyzeFile       string
+	sectionAnalyzeShowDiagram bool
+	sectionAnalyzeExportFile string
+)
 
 var sectionAnalyzeCmd = &cobra.Command{
 	Use:   "analyze",
@@ -31,6 +37,10 @@ func init() {
 
 	sectionAnalyzeCmd.Flags().StringVarP(&sectionAnalyzeFile, "file", "f", "", "Path to section JSON file [required]")
 	sectionAnalyzeCmd.MarkFlagRequired("file")
+
+	// Diagram options
+	sectionAnalyzeCmd.Flags().BoolVar(&sectionAnalyzeShowDiagram, "diagram", false, "Show ASCII stress-strain diagram")
+	sectionAnalyzeCmd.Flags().StringVarP(&sectionAnalyzeExportFile, "output", "o", "", "Export diagram to file (png, svg, pdf)")
 }
 
 func runSectionAnalyze(cmd *cobra.Command, args []string) {
@@ -173,6 +183,92 @@ func runSectionAnalyze(cmd *cobra.Command, args []string) {
 	fmt.Println("───────────────────────────────────────────────────────────────")
 	fmt.Printf("  %s\n", result.Message)
 	fmt.Println()
+
+	// Find tension steel info for diagram
+	var tensionSteelY, tensionSteelArea float64
+	var compSteelY, compSteelArea float64
+	var tensionYields, compYields bool
+	epsilonY := sec.Fy / nscp.Es
+
+	for _, layer := range result.SteelLayers {
+		if layer.IsTension {
+			tensionSteelY = layer.Y
+			tensionSteelArea += layer.Area
+			if layer.HasYielded {
+				tensionYields = true
+			}
+		} else {
+			compSteelY = layer.Y
+			compSteelArea += layer.Area
+			if layer.HasYielded {
+				compYields = true
+			}
+		}
+	}
+
+	// Convert section vertices to diagram points
+	var diagramVertices []diagram.Point
+	for _, v := range sec.Vertices {
+		diagramVertices = append(diagramVertices, diagram.Point{X: v.X, Y: v.Y})
+	}
+
+	// Show diagram if requested
+	if sectionAnalyzeShowDiagram {
+		diagramData := diagram.SectionDiagramData{
+			Width:            result.Properties.Width,
+			Height:           result.Properties.Height,
+			Vertices:         diagramVertices,
+			NeutralAxisDepth: result.C,
+			StressBlockDepth: result.A,
+			TensionSteelY:    tensionSteelY,
+			TensionSteelArea: tensionSteelArea,
+			CompSteelY:       result.Properties.Height - compSteelY,
+			CompSteelArea:    compSteelArea,
+			EpsilonCU:        nscp.EpsilonCU,
+			EpsilonT:         result.EpsilonT,
+			EpsilonY:         epsilonY,
+			Fc:               0.85 * sec.Fc,
+			FsTension:        sec.Fy,
+			FsComp:           sec.Fy,
+			TensionYields:    tensionYields,
+			CompYields:       compYields,
+			IsDoubly:         compSteelArea > 0,
+		}
+
+		fmt.Println(diagram.DrawASCIISectionDiagram(diagramData))
+		fmt.Println(diagram.DrawStrainDiagram(diagramData))
+	}
+
+	// Export diagram if requested
+	if sectionAnalyzeExportFile != "" {
+		diagramData := diagram.SectionDiagramData{
+			Width:            result.Properties.Width,
+			Height:           result.Properties.Height,
+			Vertices:         diagramVertices,
+			NeutralAxisDepth: result.C,
+			StressBlockDepth: result.A,
+			TensionSteelY:    tensionSteelY,
+			TensionSteelArea: tensionSteelArea,
+			CompSteelY:       result.Properties.Height - compSteelY,
+			CompSteelArea:    compSteelArea,
+			EpsilonCU:        nscp.EpsilonCU,
+			EpsilonT:         result.EpsilonT,
+			EpsilonY:         epsilonY,
+			Fc:               0.85 * sec.Fc,
+			FsTension:        sec.Fy,
+			FsComp:           sec.Fy,
+			TensionYields:    tensionYields,
+			CompYields:       compYields,
+			IsDoubly:         compSteelArea > 0,
+		}
+
+		err := diagram.ExportSectionDiagram(diagramData, sectionAnalyzeExportFile)
+		if err != nil {
+			fmt.Printf("Error exporting diagram: %v\n", err)
+		} else {
+			fmt.Printf("Diagram exported to: %s\n", sectionAnalyzeExportFile)
+		}
+	}
 }
 
 func absFloat(x float64) float64 {

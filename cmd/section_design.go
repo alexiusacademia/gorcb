@@ -5,13 +5,17 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/alexiusacademia/gorcb/internal/diagram"
+	"github.com/alexiusacademia/gorcb/internal/nscp"
 	"github.com/alexiusacademia/gorcb/internal/section"
 	"github.com/spf13/cobra"
 )
 
 var (
-	sectionDesignFile string
-	sectionDesignMu   float64
+	sectionDesignFile       string
+	sectionDesignMu         float64
+	sectionDesignShowDiagram bool
+	sectionDesignExportFile string
 )
 
 var sectionDesignCmd = &cobra.Command{
@@ -37,6 +41,10 @@ func init() {
 
 	sectionDesignCmd.MarkFlagRequired("file")
 	sectionDesignCmd.MarkFlagRequired("mu")
+
+	// Diagram options
+	sectionDesignCmd.Flags().BoolVar(&sectionDesignShowDiagram, "diagram", false, "Show ASCII stress-strain diagram")
+	sectionDesignCmd.Flags().StringVarP(&sectionDesignExportFile, "output", "o", "", "Export diagram to file (png, svg, pdf)")
 }
 
 func runSectionDesign(cmd *cobra.Command, args []string) {
@@ -143,6 +151,83 @@ func runSectionDesign(cmd *cobra.Command, args []string) {
 		fmt.Println("SUGGESTED BAR COMBINATIONS:")
 		fmt.Println("───────────────────────────────────────────────────────────────")
 		printBarSuggestionsFor(result.AsRequired, "  ")
+	}
+
+	// Convert section vertices to diagram points
+	var diagramVertices []diagram.Point
+	for _, v := range sec.Vertices {
+		diagramVertices = append(diagramVertices, diagram.Point{X: v.X, Y: v.Y})
+	}
+
+	// Show diagram if requested
+	if sectionDesignShowDiagram && result.IsAdequate {
+		epsilonY := sec.Fy / nscp.Es
+
+		// Get tension steel position from original section
+		var tensionSteelY float64
+		for _, layer := range sec.Reinforcement {
+			if layer.Type == "tension" || layer.Y < result.Properties.Height/2 {
+				tensionSteelY = layer.Y
+				break
+			}
+		}
+
+		diagramData := diagram.SectionDiagramData{
+			Width:            result.Properties.Width,
+			Height:           result.Properties.Height,
+			Vertices:         diagramVertices,
+			NeutralAxisDepth: result.C,
+			StressBlockDepth: result.A,
+			TensionSteelY:    tensionSteelY,
+			TensionSteelArea: result.AsRequired,
+			EpsilonCU:        nscp.EpsilonCU,
+			EpsilonT:         0.005, // Tension-controlled by design
+			EpsilonY:         epsilonY,
+			Fc:               0.85 * sec.Fc,
+			FsTension:        sec.Fy,
+			TensionYields:    true, // By design
+			IsDoubly:         false,
+		}
+
+		fmt.Println(diagram.DrawASCIISectionDiagram(diagramData))
+		fmt.Println(diagram.DrawStrainDiagram(diagramData))
+	}
+
+	// Export diagram if requested
+	if sectionDesignExportFile != "" && result.IsAdequate {
+		epsilonY := sec.Fy / nscp.Es
+
+		var tensionSteelY float64
+		for _, layer := range sec.Reinforcement {
+			if layer.Type == "tension" || layer.Y < result.Properties.Height/2 {
+				tensionSteelY = layer.Y
+				break
+			}
+		}
+
+		diagramData := diagram.SectionDiagramData{
+			Width:            result.Properties.Width,
+			Height:           result.Properties.Height,
+			Vertices:         diagramVertices,
+			NeutralAxisDepth: result.C,
+			StressBlockDepth: result.A,
+			TensionSteelY:    tensionSteelY,
+			TensionSteelArea: result.AsRequired,
+			EpsilonCU:        nscp.EpsilonCU,
+			EpsilonT:         0.005,
+			EpsilonY:         epsilonY,
+			Fc:               0.85 * sec.Fc,
+			FsTension:        sec.Fy,
+			TensionYields:    true,
+			IsDoubly:         false,
+		}
+
+		err := diagram.ExportSectionDiagram(diagramData, sectionDesignExportFile)
+		if err != nil {
+			fmt.Printf("Error exporting diagram: %v\n", err)
+		} else {
+			fmt.Printf("Diagram exported to: %s\n", sectionDesignExportFile)
+		}
 	}
 }
 
