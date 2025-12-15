@@ -1,0 +1,23 @@
+{
+  "name": "L-Beam Section",
+  "description": "L-shaped beam with extended flange on one side",
+  "fc": 28,
+  "fy": 415,
+  "vertices": [
+    {"x": 0, "y": 0},
+    {"x": 300, "y": 0},
+    {"x": 300, "y": 400},
+    {"x": 500, "y": 400},
+    {"x": 500, "y": 500},
+    {"x": 0, "y": 500}
+  ],
+  "reinforcement": [
+    {
+      "y": 65,
+      "area": 942.48,
+      "description": "3-20mm tension steel",
+      "type": "tension"
+    }
+  ]
+}
+

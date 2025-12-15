@@ -1,0 +1,24 @@
+{
+  "name": "T-Beam Section",
+  "description": "Example T-beam with 600mm flange width and 300mm web",
+  "fc": 28,
+  "fy": 415,
+  "vertices": [
+    {"x": 150, "y": 0},
+    {"x": 450, "y": 0},
+    {"x": 450, "y": 400},
+    {"x": 600, "y": 400},
+    {"x": 600, "y": 500},
+    {"x": 0, "y": 500},
+    {"x": 0, "y": 400},
+    {"x": 150, "y": 400}
+  ],
+  "reinforcement": [
+    {
+      "y": 65,
+      "area": 1256.64,
+      "description": "4-20mm tension steel"
+    }
+  ]
+}
+
