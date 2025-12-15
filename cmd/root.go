@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/alexiusacademia/gorcb/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -20,13 +21,15 @@ This tool helps structural engineers perform:
   - Shear design and stirrup spacing
   - Serviceability checks (deflection, crack width)
   - Reinforcement detailing
+  - Non-rectangular section analysis
 
 All calculations follow NSCP 2015 (Volume 1) provisions.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		fmt.Println("  ╔═══════════════════════════════════════════════════════════╗")
 		fmt.Println("  ║                                                           ║")
-		fmt.Println("  ║   gorcb - Go Reinforced Concrete Beam Designer            ║")
+		fmt.Printf("  ║   gorcb v%-48s║\n", version.Version)
+		fmt.Println("  ║   Go Reinforced Concrete Beam Designer                    ║")
 		fmt.Println("  ║                                                           ║")
 		fmt.Println("  ╚═══════════════════════════════════════════════════════════╝")
 		fmt.Println()
@@ -36,12 +39,13 @@ All calculations follow NSCP 2015 (Volume 1) provisions.`,
 		fmt.Println("  Features:")
 		fmt.Println("    • Factored moment calculation using NSCP load combinations")
 		fmt.Println("    • Singly reinforced beam design and analysis")
-		fmt.Println("    • Flexural reinforcement calculation")
+		fmt.Println("    • Doubly reinforced beam design and analysis")
+		fmt.Println("    • Non-rectangular section design and analysis")
 		fmt.Println()
 		fmt.Println("  Use 'gorcb --help' to see available commands.")
 		fmt.Println()
 		fmt.Println("  ─────────────────────────────────────────────────────────────")
-		fmt.Println("  Copyright © 2025 Alexius Academia. All rights reserved.")
+		fmt.Printf("  Copyright © %s %s. All rights reserved.\n", version.Year, version.Author)
 		fmt.Println()
 	},
 }
